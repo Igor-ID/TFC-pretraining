@@ -1,6 +1,12 @@
-<!-- # SELF-SUPERVISED CONTRASTIVE PRE-TRAINING FOR TIME SERIES VIA TIME-FREQUENCY CONSISTENCY -->
 
 # Self-Supervised Contrastive Pre-Training For Time Series via Time-Frequency Consistency
+
+#### Authors: [Xiang Zhang](http://xiangzhang.info/) (xiang.alan.zhang@gmail.com), [Ziyuan Zhao](https://github.com/mims-harvard/Raindrop)(ziyuanzhao@college.harvard.edu), <br/>
+####  [Theodoros Tsiligkaridis](https://github.com/mims-harvard/Raindrop)(ttsili@ll.mit.edu), [Marinka Zitnik](https://zitniklab.hms.harvard.edu/) (marinka@hms.harvard.edu)
+
+#### [Project website](https://zitniklab.hms.harvard.edu/projects/TF-C/)
+
+#### TF-C Paper: [NeurIPS 2022](https://openreview.net/forum?id=OJ4mMfGKLN), [Preprint](https://arxiv.org/abs/2206.08496)
 
 ## Overview 
 
@@ -80,7 +86,18 @@ The second step consists of converting, for each dataset, from the three .pt fil
 <!-- The pre-processing scripts are available upon reasonable request. -->
 
 **Step one** 
-The processed datasets can be manually downloaded at the following links. Then you have to place the files inside the corresponding folder under `data/dataset_name` (such as `data/SleepEEG`):
+The processed datasets can be manually downloaded at the following links. 
+
+- wget -O SleepEEG.zip https://figshare.com/ndownloader/articles/19930178/versions/1
+- wget -O Epilepsy.zip https://figshare.com/ndownloader/articles/19930199/versions/2 
+- wget -O FD-A.zip https://figshare.com/ndownloader/articles/19930205/versions/1
+- wget -O FD-B.zip https://figshare.com/ndownloader/articles/19930226/versions/1
+- wget -O HAR.zip https://figshare.com/ndownloader/articles/19930244/versions/1
+- wget -O Gesture.zip https://figshare.com/ndownloader/articles/19930247/versions/1
+- wget -O ECG.zip https://figshare.com/ndownloader/articles/19930253/versions/1
+- wget -O EMG.zip https://figshare.com/ndownloader/articles/19930250/versions/1
+
+Then you have to place the files inside the corresponding folder under `data/dataset_name` (such as `data/SleepEEG`):
 
 **The well-processed datasets will be released (in FigShare) after acceptance. **
 
@@ -128,24 +145,44 @@ For the baselines, we have not managed to unify the environments due to the larg
 
 **Reproduce baselines** You are advised to run the models from the corresponding folders under `code/baselines/` using the command-line patterns described by the original authors' `README  .md` files whenever possible. We note that in the case of Mixing-up and SimCLR, pre-training and fine-tuning are done by directly running `train_model.py` and `finetune_model.py` without passing in arguments. Similarly, for CLOCS, one must manually modify the hyperparameters to the training procedure inside the main file (  `run_experiments.py` in this case). Please reach out to the original authors of these baselines if you have any questions about setting these hyperparameters in their models. Finally, for each baseline, on different pairs of datasets, the performance of transfer learning can vary depending on the hyperparameter choices. We have manually experimented with them and chose the combinations that gave the best performance while keeping the model complexity of different baselines comparable. We include tables describing the specific combinations of hyperparameters we used for different datasets whenever necessary, in the corresponding folder for the different baselines so that reproducing our result is made possible. Please note some baselines are designed for representation learning (instead of pre-training) of time series, we use these baselines in the same setups as our model to make results comparable.
 
-<!-- ## Citation
+## Citation
 
 If you find *TF-C* useful for your research, please consider citing this paper:
 
 ````
 ```
-@inproceedings{??,
-Title = {Self-Supervised Contrastive Pre-Training For Time Series via Time-Frequency Consistency},
-author = {??},
-booktitle = {arxiv??},
+@inproceedings{zhang2022self,
+title = {Self-Supervised Contrastive Pre-Training For Time Series via Time-Frequency Consistency},
+author = {Zhang, Xiang and Zhao, Ziyuan and Tsiligkaridis, Theodoros and Zitnik, Marinka},
+booktitle = {Proceedings of Neural Information Processing Systems, NeurIPS},
 year      = {2022}
 }
 ```
 ````
 
+## Updated Jan. 2023
+
+We updated the implementation the proposed TF-C model on the following aspects.
+
+1. Fixed bugs, cleaned the codes, and added comments for better understanding. The newly uploaded TF-C code is at path `TFC-pretraining/code/TFC`. All the necessary files to run it are provided in the folder. 
+2. For the contrastive encoders (in both time and frequency domains), we replaced the 3 layers of CNN blocks with 2 layers of Transformer. We noticed that the performance is not improved (even with a slight decrease) but the stability is getting better. 
+3. For the downstream classifier, we added a KNN classifier in parallel with the original MLP (2-layer) classifier. In preliminary experiments, we noticed that the performance of MLP varies across different setups and hyper-parameter settings. Thus, in this version, we provide two classifiers: 2-layer MLP and KNN (K=5). However, the reasons hidden behind the performance variance are still unknown, which needs further studies. 
+4. For better reproduction, we hereby provided an example of a pre-trained model. The model weights can be found in path `TFC-pretraining/code/experiments_logs/SleepEEG_2_Epilepsy/run1/pre_train_seed_42_2layertransformer/saved_models/ckp_last.pt`. The model path is identical to the one used in code, so you may clone/download this whole repo and directly run the 'TFC-pretraining/code/TFC/main.py' file. 
+    - This model is pretrained on the scenario: SleepEEG to Epilepsy (in this update, all the debugs are based on this setup). In specific, setting the training_mode as `pre_train` and pretrain_dataset as `SleepEEG`. In SleepEEG_Configs.py, all the hyper-parameters are unchanged, in specific, lr=0.0005, epoch number as 200 (200 for pretraining while 20 for finetuning). We set the random seed as 42.
+    - In finetuning on Epilepsy (lr= 0.0005, epoch=20, batchsize=60), the finetuning set is still 60 samples (30 positive + 30 negative). There are 20 validation and 11420 test samples. But we have resplit the Epilepsy dataset (i.e., regenerated the 60 finetuning set) to test the stability of the model. The code for re-splitting is available at `TFC-pretraining/code/TFC/Data_split.py` and the split dataset is uploaded to this repo `TFC-pretraining/datasets/Epilepsy/` (it is also synchronized to Figshare). 
+    - In such a seting, with the help of TFC, the best test performance on finetuning set is ~0.88 on F1 (achieved by MLP which beats KNN) while only ~0.60 without TFC pretraining. *Please note, for quick debugging, the model is pretrained on a subset of SleepEEG (1280 samples which are only <1% of the whole dataset).* Thus, we believe there's a large space to further boost the performance with more pretraining samples.
+5. We'd like to share more ideas that may improve the TF-C framework in follow-up works. 
+    - The 2-layer transformer could be modified based on the specific task (e.g., adding more layers for complex time series). The polishing on the backbone can be helpful. BTW, I didn't tune the hyper-parameters after switching to Transformer, a better hyperparameter setting (e.g., the number of layers, the dimension of Transformer, the dimension of the MLP hidden layer, etc.) might be helpful. 
+    - Use different architectures in time-based and frequency-based encoders. As the signals' properties in the frequency domain is very different with time domain, a dedicated encoder architecture can be adopted to better capture the information.
+    - Explore more augmentations in frequency domain. Now, we used adding or removing frequency components,  so that designing more perturbations (like bandpass filtering) is a promising way. 
+    - In the frequency domain, we only leveraged the magnitude information, however, the phase is also very important. So, an important future topic will fully exploit the information in the frequency domain. 
+    - Better projection. Now, we project the time- and frequency-based embeddings to a shared time-frequency domain. The current projectors' structure is a 2-layer MLP which is kind of simple. More powerful and helpful projecting methods are welcomed. 
+    - More ideas may be added.
+
+
 ## Miscellaneous
 
-<!--- Please send any questions you might have about the code and/or the algorithm to <xiang_zhang@hms.harvard.edu>. Alternatively, you can open an issue under the current repo and we will be notified. --->
+Please send any questions you might have about the code and/or the algorithm to <xiang.alan.zhang@gmail.com>. 
 
 
 
